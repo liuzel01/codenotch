@@ -202,7 +202,7 @@ private struct SettingsSidebarRow: View {
                     .contentTransition(.numericText())
             }
             if let disclosure {
-                DisclosureChevron(isExpanded: disclosure)
+                DisclosureChevron(isExpanded: disclosure.wrappedValue, isHovered: isHovered)
             }
         }
         .padding(.leading, indent ? 28 : 10)
@@ -241,7 +241,7 @@ private struct SettingsSidebarRow: View {
                 .onChanged { _ in if !isPressed { isPressed = true } }
                 .onEnded { value in
                     isPressed = false
-                    if abs(value.translation.width) < 6, abs(value.translation.height) < 6 { select() }
+                    if abs(value.translation.width) < 6, abs(value.translation.height) < 6 { activate() }
                 }
         )
         .onChange(of: isSelected) { selected in
@@ -249,7 +249,20 @@ private struct SettingsSidebarRow: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
-        .accessibilityAction { select() }
+        .accessibilityAction { activate() }
+    }
+
+    /// Accounts is both a destination and the header for its provider panes.
+    /// Make one row-level action handle both jobs so the chevron is an honest
+    /// state indicator rather than a tiny, separate target nested inside the
+    /// row's own gesture.
+    private func activate() {
+        if let disclosure {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                disclosure.wrappedValue.toggle()
+            }
+        }
+        select()
     }
 
     @ViewBuilder
@@ -270,28 +283,21 @@ private struct SettingsSidebarRow: View {
     }
 }
 
-/// The arrow that folds Accounts' providers away: brighter under the pointer,
-/// a soft disc behind it, and a springy turn.
+/// The arrow that says whether Accounts' providers are visible. The whole
+/// Accounts row owns the action, so this is deliberately an indicator rather
+/// than a nested button with a much smaller hit target.
 private struct DisclosureChevron: View {
-    @Binding var isExpanded: Bool
-    @State private var isHovered = false
+    let isExpanded: Bool
+    let isHovered: Bool
 
     var body: some View {
-        Button {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) { isExpanded.toggle() }
-        } label: {
-            Image(systemName: "chevron.right")
-                .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(.white.opacity(isHovered ? 0.85 : 0.45))
-                .rotationEffect(.degrees(isExpanded ? 90 : 0))
-                .frame(width: 18, height: 18)
-                .background(Circle().fill(.white.opacity(isHovered ? 0.08 : 0)))
-                .contentShape(Circle())
-        }
-        .buttonStyle(SettingsPressStyle())
-        .onHover { hovering in
-            withAnimation(.easeOut(duration: 0.12)) { isHovered = hovering }
-        }
+        Image(systemName: "chevron.right")
+            .font(.system(size: 10, weight: .bold))
+            .foregroundStyle(.white.opacity(isHovered ? 0.85 : 0.45))
+            .rotationEffect(.degrees(isExpanded ? 90 : 0))
+            .frame(width: 18, height: 18)
+            .background(Circle().fill(.white.opacity(isHovered ? 0.08 : 0)))
+            .accessibilityHidden(true)
     }
 }
 
